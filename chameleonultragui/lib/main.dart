@@ -12,6 +12,7 @@ import 'package:chameleonultragui/gui/page/tools.dart';
 import 'package:chameleonultragui/gui/page/plugins.dart';
 import 'package:chameleonultragui/helpers/font.dart';
 import 'package:chameleonultragui/helpers/general.dart';
+import 'package:chameleonultragui/helpers/ble_pairing.dart';
 import 'package:chameleonultragui/helpers/window_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -183,6 +184,7 @@ class _MainPageState extends State<MainPage> {
   var selectedIndex = 0;
   Timer? _keepAliveTimer;
   bool _keepAliveInFlight = false;
+  dynamic _pairingCheckedPort;
 
   @override
   void initState() {
@@ -295,6 +297,25 @@ class _MainPageState extends State<MainPage> {
     }
 
     appState.devMode = appState.sharedPreferencesProvider.isDebugMode();
+
+    // Ask for the BLE PIN once per connection only when the device itself
+    // reports that pairing is required and no bond exists yet.
+    if (appState.connector!.connected &&
+        !appState.connector!.isDFU &&
+        appState.connector!.connectionType == ConnectionType.ble) {
+      final port = appState.connector!.activeDevicePort;
+      if (port != null && port != _pairingCheckedPort) {
+        _pairingCheckedPort = port;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ensureBlePairing(context, appState);
+          }
+        });
+      }
+    } else if (!appState.connector!.connected) {
+      _pairingCheckedPort = null;
+      forgetBlePairingPort();
+    }
 
     Widget page; // Set Page
     if (!appState.connector!.connected &&
