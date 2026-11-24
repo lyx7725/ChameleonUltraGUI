@@ -42,7 +42,6 @@ typedef _EnumWindowsNative = Int32 Function(
 typedef _EnumWindowsDart = int Function(
     Pointer<NativeFunction<Int32 Function(IntPtr, IntPtr)>>, int);
 typedef _EnumProcNative = Int32 Function(IntPtr, IntPtr);
-typedef _EnumProcDart = int Function(int, int);
 typedef _GetWindowThreadProcessIdNative = Uint32 Function(
     IntPtr, Pointer<Uint32>);
 typedef _GetWindowThreadProcessIdDart = int Function(int, Pointer<Uint32>);
@@ -277,4 +276,19 @@ class WindowStateKeeper {
       calloc.free(placement);
     }
   }
+}
+
+/// Hides the runner window. Used by the headless BLE stress harness.
+void hideApplicationWindow() {
+  if (!Platform.isWindows) {
+    return;
+  }
+  final hwnd = _findOwnWindow();
+  if (hwnd == 0) {
+    return;
+  }
+  try {
+    _user32.lookupFunction<_ShowWindowNative, _ShowWindowDart>(
+        'ShowWindow')(hwnd, 0);
+  } catch (_) {}
 }
