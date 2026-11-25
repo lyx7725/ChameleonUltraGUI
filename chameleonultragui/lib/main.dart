@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:chameleonultragui/ble_stress.dart';
 import 'package:chameleonultragui/bridge/chameleon.dart';
 import 'package:chameleonultragui/connector/serial_abstract.dart';
 import 'package:chameleonultragui/connector/serial_android.dart';
@@ -42,46 +41,37 @@ import 'package:chameleonultragui/sharedprefsprovider.dart';
 // Logger
 import 'package:logger/logger.dart';
 
+import 'package:chameleonultragui/plugins/store.dart';
+import 'package:chameleonultragui/sync/sync_service.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (Platform.environment['CHAMELEON_BLE_STRESS'] == '1') {
-    runApp(const _BleStressApp());
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      hideApplicationWindow();
-      await runBleStress();
-    });
-    return;
-  }
   final sharedPreferencesProvider = SharedPreferencesProvider();
   await sharedPreferencesProvider.load();
   await WindowStateKeeper.instance.restore();
-  runApp(ChameleonGUI(sharedPreferencesProvider));
+  final sync = SyncService(sharedPreferencesProvider.preferences);
+  sharedPreferencesProvider.onLocalChange = sync.localChanged;
+  sync.start();
+  runApp(ChameleonGUI(sharedPreferencesProvider, sync));
   WindowStateKeeper.instance.start();
-}
-
-class _BleStressApp extends StatelessWidget {
-  const _BleStressApp();
-
-  @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(backgroundColor: Colors.black, body: SizedBox.expand()),
-    );
-  }
 }
 
 class ChameleonGUI extends StatelessWidget {
   // Root Widget
   final SharedPreferencesProvider _sharedPreferencesProvider;
-  const ChameleonGUI(this._sharedPreferencesProvider, {super.key});
+  final SyncService _sync;
+  const ChameleonGUI(this._sharedPreferencesProvider, this._sync, {super.key});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: _sharedPreferencesProvider),
+        ChangeNotifierProvider.value(value: _sync),
         ChangeNotifierProvider(
-          create: (context) => ChameleonGUIState(_sharedPreferencesProvider),
+          create: (context) => ChameleonGUIState(_sharedPreferencesProvider)
+            // Remote data changed settings, cards, ...: rebuild everything.
+            ..watchSync(_sync),
         ),
       ],
       child: MainPage(sharedPreferencesProvider: _sharedPreferencesProvider),
@@ -113,6 +103,13 @@ class ChameleonGUIState extends ChangeNotifier {
 
   void changesMade() {
     notifyListeners();
+  }
+
+  void watchSync(SyncService sync) {
+    sync.onRemoteChange = (collections) {
+      if (collections.contains('plugins')) PluginStore.remoteChanges.value++;
+      changesMade();
+    };
   }
 
   void onConnectorStateChanged() {
