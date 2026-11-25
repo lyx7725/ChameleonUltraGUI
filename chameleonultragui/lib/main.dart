@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:chameleonultragui/ble_stress.dart';
 import 'package:chameleonultragui/bridge/chameleon.dart';
 import 'package:chameleonultragui/connector/serial_abstract.dart';
@@ -12,7 +13,6 @@ import 'package:chameleonultragui/gui/page/tools.dart';
 import 'package:chameleonultragui/gui/page/plugins.dart';
 import 'package:chameleonultragui/helpers/font.dart';
 import 'package:chameleonultragui/helpers/general.dart';
-import 'package:chameleonultragui/helpers/ble_pairing.dart';
 import 'package:chameleonultragui/helpers/window_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -65,10 +65,7 @@ class _BleStressApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      home: Scaffold(
-        backgroundColor: Colors.black,
-        body: SizedBox.expand(),
-      ),
+      home: Scaffold(backgroundColor: Colors.black, body: SizedBox.expand()),
     );
   }
 }
@@ -184,22 +181,20 @@ class _MainPageState extends State<MainPage> {
   var selectedIndex = 0;
   Timer? _keepAliveTimer;
   bool _keepAliveInFlight = false;
-  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => updateNavigationRailWidth(context));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => updateNavigationRailWidth(context),
+    );
     // The firmware keeps running while BLE is connected, but powers off a few
     // seconds after the link drops. A lightweight periodic command keeps both
     // the BLE link and the device awake while the app is open.
     _keepAliveTimer = Timer.periodic(
-        const Duration(milliseconds: 1000), (_) => sendKeepAlive());
-    BlePairingService.instance.bringToFront = () async {
-      bringApplicationWindowToFront();
-    };
-    BlePairingService.instance.promptPin = _showBlePinDialog;
+      const Duration(milliseconds: 1000),
+      (_) => sendKeepAlive(),
+    );
   }
 
   @override
@@ -272,103 +267,11 @@ class _MainPageState extends State<MainPage> {
         appState._sharedPreferencesProvider!.isDebugMode()) {
       return Logger(
         output: SharedPreferencesLogger(appState._sharedPreferencesProvider!),
-        printer: PrettyPrinter(
-          noBoxingByDefault: true,
-        ),
+        printer: PrettyPrinter(noBoxingByDefault: true),
         filter: ChameleonLogFilter(),
       );
     } else {
       return Logger();
-    }
-  }
-
-  Future<String?> _showBlePinDialog(String? error) async {
-    final navigator = _navigatorKey.currentState;
-    if (navigator == null) {
-      return null;
-    }
-    final localizations = AppLocalizations.of(navigator.context)!;
-    final controller = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    var dialogOpen = true;
-    final timeout = Timer(const Duration(seconds: 30), () {
-      if (dialogOpen && navigator.canPop()) {
-        navigator.pop(null);
-      }
-    });
-
-    try {
-      return await showDialog<String>(
-        context: navigator.context,
-        useRootNavigator: true,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          void submit() {
-            if (formKey.currentState?.validate() ?? false) {
-              Navigator.pop(dialogContext, controller.text);
-            }
-          }
-
-          return AlertDialog(
-            title: Text(localizations.ble_pin),
-            content: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (error != null) ...[
-                    Text(
-                      localizations.invalid_password,
-                      style: TextStyle(
-                        color: Theme.of(dialogContext).colorScheme.error,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  TextFormField(
-                    controller: controller,
-                    autofocus: true,
-                    obscureText: true,
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    maxLength: 6,
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.done,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
-                    onFieldSubmitted: (_) => submit(),
-                    decoration: InputDecoration(
-                      hintText: localizations.enter_pin,
-                      counterText: '',
-                    ),
-                    validator: (value) {
-                      if (value == null || value.length != 6) {
-                        return localizations.pin_must_be_6_digits;
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: Text(localizations.cancel),
-              ),
-              FilledButton(
-                onPressed: submit,
-                child: Text(localizations.connect),
-              ),
-            ],
-          );
-        },
-      );
-    } finally {
-      dialogOpen = false;
-      timeout.cancel();
-      controller.dispose();
     }
   }
 
@@ -457,11 +360,11 @@ class _MainPageState extends State<MainPage> {
 
     try {
       WakelockPlus.toggle(
-          enable: page is FlashingPage || appState.connector!.connected);
+        enable: page is FlashingPage || appState.connector!.connected,
+      );
     } catch (_) {}
 
     return MaterialApp(
-      navigatorKey: _navigatorKey,
       title: 'Chameleon Ultra GUI', // App Name
       locale: widget.sharedPreferencesProvider.getLocale(),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -469,43 +372,48 @@ class _MainPageState extends State<MainPage> {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-            seedColor: widget.sharedPreferencesProvider.getThemeColor()),
+          seedColor: widget.sharedPreferencesProvider.getThemeColor(),
+        ),
         brightness: Brightness.light,
         appBarTheme: AppBarTheme(
-            systemOverlayStyle: SystemUiOverlayStyle(
-                statusBarColor: ColorScheme.fromSeed(
-                        seedColor:
-                            widget.sharedPreferencesProvider.getThemeColor(),
-                        brightness: Brightness.light)
-                    .surface,
-                statusBarBrightness: Brightness.light,
-                statusBarIconBrightness: Brightness.dark)),
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: ColorScheme.fromSeed(
+              seedColor: widget.sharedPreferencesProvider.getThemeColor(),
+              brightness: Brightness.light,
+            ).surface,
+            statusBarBrightness: Brightness.light,
+            statusBarIconBrightness: Brightness.dark,
+          ),
+        ),
       ).useCustomSystemFont(Brightness.light),
       darkTheme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-            seedColor: widget.sharedPreferencesProvider.getThemeColor(),
-            brightness: Brightness.dark),
+          seedColor: widget.sharedPreferencesProvider.getThemeColor(),
+          brightness: Brightness.dark,
+        ),
         brightness: Brightness.dark,
         appBarTheme: AppBarTheme(
-            systemOverlayStyle: SystemUiOverlayStyle(
-                statusBarColor: ColorScheme.fromSeed(
-                        seedColor:
-                            widget.sharedPreferencesProvider.getThemeColor(),
-                        brightness: Brightness.dark)
-                    .surface,
-                statusBarBrightness: Brightness.dark,
-                statusBarIconBrightness: Brightness.light)),
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: ColorScheme.fromSeed(
+              seedColor: widget.sharedPreferencesProvider.getThemeColor(),
+              brightness: Brightness.dark,
+            ).surface,
+            statusBarBrightness: Brightness.dark,
+            statusBarIconBrightness: Brightness.light,
+          ),
+        ),
       ).useCustomSystemFont(Brightness.dark),
       themeMode: widget.sharedPreferencesProvider.getTheme(), // Dark Theme
-      home: LayoutBuilder(// Build Page
-          builder: (context, constraints) {
-        return SafeArea(
-          left: false,
-          right: false,
-          top: false,
-          bottom: true,
-          child: Scaffold(
+      home: LayoutBuilder(
+        // Build Page
+        builder: (context, constraints) {
+          return SafeArea(
+            left: false,
+            right: false,
+            top: false,
+            bottom: true,
+            child: Scaffold(
               body: Row(
                 children: [
                   (!appState.connector!.isDFU || !appState.connector!.connected)
@@ -520,50 +428,60 @@ class _MainPageState extends State<MainPage> {
                               NavigationRailDestination(
                                 icon: const Icon(Icons.home),
                                 label: Text(
-                                    AppLocalizations.of(context)!.home), // Home
+                                  AppLocalizations.of(context)!.home,
+                                ), // Home
                               ),
                               NavigationRailDestination(
                                 disabled: !appState.connector!.connected,
                                 icon: const Icon(Icons.widgets),
                                 label: Text(
-                                    AppLocalizations.of(context)!.slot_manager),
+                                  AppLocalizations.of(context)!.slot_manager,
+                                ),
                               ),
                               NavigationRailDestination(
                                 icon: const Icon(Icons.auto_awesome_motion),
                                 label: Text(
-                                    AppLocalizations.of(context)!.saved_cards),
+                                  AppLocalizations.of(context)!.saved_cards,
+                                ),
                               ),
                               NavigationRailDestination(
                                 disabled: !appState.connector!.connected,
                                 icon: const Icon(Icons.sensors),
                                 label: Text(
-                                    AppLocalizations.of(context)!.read_card),
+                                  AppLocalizations.of(context)!.read_card,
+                                ),
                               ),
                               NavigationRailDestination(
                                 disabled: !appState.connector!.connected,
                                 icon: const Icon(Icons.system_update_alt),
                                 label: Text(
-                                    AppLocalizations.of(context)!.write_card),
+                                  AppLocalizations.of(context)!.write_card,
+                                ),
                               ),
                               NavigationRailDestination(
                                 icon: const Icon(Icons.handyman),
-                                label:
-                                    Text(AppLocalizations.of(context)!.tools),
+                                label: Text(
+                                  AppLocalizations.of(context)!.tools,
+                                ),
                               ),
                               NavigationRailDestination(
                                 icon: const Icon(Icons.extension),
-                                label: Text(AppLocalizations.of(context)!.plugins),
+                                label: Text(
+                                  AppLocalizations.of(context)!.plugins,
+                                ),
                               ),
                               NavigationRailDestination(
                                 icon: const Icon(Icons.settings),
                                 label: Text(
-                                    AppLocalizations.of(context)!.settings),
+                                  AppLocalizations.of(context)!.settings,
+                                ),
                               ),
                               if (appState.devMode)
                                 NavigationRailDestination(
                                   icon: const Icon(Icons.bug_report),
                                   label: Text(
-                                      '🐞 ${AppLocalizations.of(context)!.debug} 🐞'),
+                                    '🐞 ${AppLocalizations.of(context)!.debug} 🐞',
+                                  ),
                                 ),
                             ],
                             selectedIndex: selectedIndex,
@@ -583,9 +501,11 @@ class _MainPageState extends State<MainPage> {
                   ),
                 ],
               ),
-              bottomNavigationBar: const BottomProgressBar()),
-        );
-      }),
+              bottomNavigationBar: const BottomProgressBar(),
+            ),
+          );
+        },
+      ),
     );
   }
 }
