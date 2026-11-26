@@ -53,6 +53,10 @@ class WindowsBLESerial extends AbstractSerial {
   bool _usbSuspended = false;
   bool _directRunning = false;
   Completer<void>? _activeWatch;
+  String? _directAddress;
+  bool _deviceSeen = false;
+  bool _loggedDirectWait = false;
+  Completer<void>? _deviceSeenCompleter;
 
   WindowsBLESerial({required super.log}) {
     BleTrace.setMode(mode);
@@ -185,7 +189,7 @@ class WindowsBLESerial extends AbstractSerial {
     if (!connected) {
       await _cleanupForConnect();
     }
-    BleStatus.set(BlePhase.waiting);
+    BleStatus.waiting();
     notifyConnectionStateChanged();
   }
 
@@ -201,7 +205,7 @@ class WindowsBLESerial extends AbstractSerial {
     if (!connected) {
       await _cleanupForConnect();
     }
-    BleStatus.set(BlePhase.waiting);
+    BleStatus.waiting();
     notifyConnectionStateChanged();
   }
 
@@ -236,6 +240,10 @@ class WindowsBLESerial extends AbstractSerial {
     final active = _activeWatch;
     if (active != null && !active.isCompleted) {
       active.complete();
+    }
+    final seen = _deviceSeenCompleter;
+    if (seen != null && !seen.isCompleted) {
+      seen.complete();
     }
     await _stopScan();
   }
@@ -294,6 +302,7 @@ class WindowsBLESerial extends AbstractSerial {
           if (!_isChameleonResult(result)) {
             continue;
           }
+          _markDeviceSeen(result.device.remoteId.str);
           final advAt = DateTime.now();
           firstAdvertisement ??= advAt;
           lastAdvertisement = advAt;
@@ -328,7 +337,7 @@ class WindowsBLESerial extends AbstractSerial {
             dfu: false,
           );
           chameleonMap[port] = info;
-          BleStatus.set(BlePhase.connecting);
+          BleStatus.connecting();
           _trace('watch.found', 'port=$port name=$name');
 
           unawaited(() async {
@@ -353,14 +362,12 @@ class WindowsBLESerial extends AbstractSerial {
                 'watch.failed',
                 'ms=$elapsed stop_scan_ms=$stopScanMs port=$port',
               );
-              BleStatus.set(BlePhase.failedRetrying);
-              unawaited(
-                Future<void>.delayed(const Duration(milliseconds: 1200), () {
-                  if (!connected) {
-                    BleStatus.set(BlePhase.waiting);
-                  }
-                }),
-              );
+              _deviceSeen = false;
+              if (_usbSuspended || !_watch.desired) {
+                BleStatus.waiting();
+              } else {
+                BleStatus.attemptFailed();
+              }
             }
             if (!completer.isCompleted) {
               completer.complete();
@@ -422,8 +429,38 @@ class WindowsBLESerial extends AbstractSerial {
         dfu: false,
       );
       chameleonMap[address] = info;
+      if (_directRunning) {
+        return;
+      }
+      _directAddress = address;
+      _deviceSeen = false;
+      _loggedDirectWait = false;
       unawaited(_directLoop(address, info));
     } catch (_) {}
+  }
+
+  /// Marks the remembered address as observed by the scan. Background direct
+  /// connect must not try a possibly absent device before this happens.
+  void _markDeviceSeen(String port) {
+    if (_directAddress != port) {
+      return;
+    }
+    if (!_deviceSeen) {
+      _deviceSeen = true;
+      _loggedDirectWait = false;
+    }
+    final completer = _deviceSeenCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete();
+    }
+  }
+
+  Future<void> _waitForDeviceSeen() async {
+    final completer = _deviceSeenCompleter ??= Completer<void>();
+    await completer.future;
+    if (identical(_deviceSeenCompleter, completer)) {
+      _deviceSeenCompleter = null;
+    }
   }
 
   Future<void> _directLoop(String address, Chameleon info) async {
@@ -441,7 +478,16 @@ class WindowsBLESerial extends AbstractSerial {
         await Future<void>.delayed(const Duration(milliseconds: 300));
         continue;
       }
+      if (!_deviceSeen) {
+        if (!_loggedDirectWait) {
+          _trace('direct.wait', 'address=$address waiting-for-advertisement');
+          _loggedDirectWait = true;
+        }
+        await _waitForDeviceSeen();
+        continue;
+      }
 
+      BleStatus.connecting();
       _connecting = true;
       var stage = 'cleanup';
       final total = Stopwatch()..start();
@@ -464,10 +510,8 @@ class WindowsBLESerial extends AbstractSerial {
         if (_usbSuspended) {
           throw 'usb-priority';
         }
-        // Only a real link turns the page into "connecting"; retrying an
-        // absent remembered address must keep showing "waiting".
         pendingConnection = true;
-        BleStatus.set(BlePhase.connecting);
+        BleStatus.connecting();
         notifyConnectionStateChanged();
 
         stage = 'discover';
@@ -511,15 +555,17 @@ class WindowsBLESerial extends AbstractSerial {
         );
         await _cleanupDirect();
         pendingConnection = false;
-        BleStatus.set(BlePhase.failedRetrying);
+        _deviceSeen = false;
+        if (_usbSuspended || !_watch.desired) {
+          BleStatus.waiting();
+        } else {
+          BleStatus.attemptFailed();
+        }
         notifyConnectionStateChanged();
       } finally {
         _connecting = false;
       }
       await Future<void>.delayed(const Duration(milliseconds: 1200));
-      if (!connected) {
-        BleStatus.set(BlePhase.waiting);
-      }
     }
     _directRunning = false;
     _trace('direct.loop', 'stopped');
@@ -902,7 +948,7 @@ class WindowsBLESerial extends AbstractSerial {
     isDFU = false;
     _activePort = port.toString();
     _activeInfo = info;
-    BleStatus.set(BlePhase.waiting);
+    BleStatus.waiting();
     unawaited(() async {
       await _saveLastDevice(port.toString(), info);
       if (!_directRunning && _watch.desired) {
@@ -1017,7 +1063,7 @@ class WindowsBLESerial extends AbstractSerial {
     _activePort = null;
     _activeInfo = null;
     resetConnectionState();
-    BleStatus.set(BlePhase.waiting);
+    BleStatus.waiting();
     try {
       await device?.disconnect().timeout(const Duration(seconds: 2));
     } catch (_) {}

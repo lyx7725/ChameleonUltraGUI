@@ -1,4 +1,4 @@
-# Chameleon Ultra GUI Plus 1.4.2
+# Chameleon Ultra GUI Plus 1.4.3
 
 An independently maintained community build of Chameleon Ultra GUI, based on the
 upstream open-source project and distributed under GPL-3.0. This is not an

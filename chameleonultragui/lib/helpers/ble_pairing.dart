@@ -51,8 +51,8 @@ class BlePairingService {
     final future = Platform.isWindows
         ? _pairWindows(port)
         : Platform.isAndroid
-            ? _pairAndroid(port)
-            : Future<bool>.value(true);
+        ? _pairAndroid(port)
+        : Future<bool>.value(true);
     _inFlight = future;
     _inFlightPort = port;
     return future.whenComplete(() {
@@ -89,7 +89,7 @@ class BlePairingService {
           return false;
         }
         _suppressedUntil = null;
-        BleStatus.set(BlePhase.connecting);
+        BleStatus.connecting();
         return true;
       }
     } on TimeoutException {
@@ -104,7 +104,7 @@ class BlePairingService {
     _suppressedUntil = DateTime.now().add(const Duration(seconds: 60));
     BleStatus.set(BlePhase.pinError);
     await Future<void>.delayed(const Duration(milliseconds: 900));
-    BleStatus.set(BlePhase.failedRetrying);
+    BleStatus.attemptFailed();
     return false;
   }
 
@@ -117,7 +117,7 @@ class BlePairingService {
       }
       BleStatus.set(BlePhase.pinRequired);
       await device.createBond(timeout: 30);
-      BleStatus.set(BlePhase.connecting);
+      BleStatus.connecting();
       BleTrace.instance.log('pair.system.result', 'ok=true');
       return true;
     } catch (e) {
@@ -127,7 +127,7 @@ class BlePairingService {
       );
       BleStatus.set(BlePhase.pinError);
       await Future<void>.delayed(const Duration(milliseconds: 900));
-      BleStatus.set(BlePhase.failedRetrying);
+      BleStatus.attemptFailed();
       return false;
     }
   }
