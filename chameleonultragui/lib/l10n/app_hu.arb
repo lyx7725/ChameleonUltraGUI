@@ -87,6 +87,7 @@
   "auto": "Automata",
   "restart_now": "\u00dajraind\u00edt\u00e1s most",
   "about_text": "Az eszk\u00f6z a grafikus kezel\u00e9s\u00e9hez \u00e9s konfigur\u00e1l\u00e1s\u00e1hoz sz\u00e1m\u00edt\u00f3g\u00e9pen \u00e9s mobilon is fut.",
+  "independent_fork_notice": "Independent community build based on the upstream open-source project. Not an official release.",
   "version": "Verzi\u00f3",
   "developed_by": "Fejlesztette",
   "license": "Licensz",

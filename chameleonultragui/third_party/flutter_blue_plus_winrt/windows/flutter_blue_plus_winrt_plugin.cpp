@@ -538,12 +538,21 @@ FlutterBluePlusWinrtPlugin::~FlutterBluePlusWinrtPlugin() {
 void FlutterBluePlusWinrtPlugin::OnAdvertisementReceived(
     const BluetoothLEAdvertisementWatcher&,
     const BluetoothLEAdvertisementReceivedEventArgs& args) {
+    DispatchAdvertisement(this, is_alive_, args);
+}
 
-    [this, args, alive = is_alive_]() -> winrt::fire_and_forget {
+winrt::fire_and_forget FlutterBluePlusWinrtPlugin::DispatchAdvertisement(
+    FlutterBluePlusWinrtPlugin* self,
+    std::shared_ptr<std::atomic<bool>> alive,
+    BluetoothLEAdvertisementReceivedEventArgs args) {
+    co_await self->ui_thread_;
+    if (!*alive) co_return;
+    self->HandleAdvertisement(args);
+}
+
+void FlutterBluePlusWinrtPlugin::HandleAdvertisement(
+    BluetoothLEAdvertisementReceivedEventArgs args) {
         try {
-            co_await ui_thread_;
-            if (!*alive) co_return;
-
             if (channel_) {
                 std::string remote_id = uint64_to_mac_string(args.BluetoothAddress());
 
@@ -555,7 +564,7 @@ void FlutterBluePlusWinrtPlugin::OnAdvertisementReceived(
                 constexpr size_t kMaxScanDevices = 4096;
                 bool is_new_device = scan_results_cache_.find(remote_id) == scan_results_cache_.end();
                 if (is_new_device && scan_results_cache_.size() >= kMaxScanDevices) {
-                    co_return;
+                    return;
                 }
 
                 rssi_cache_[remote_id] = static_cast<int32_t>(args.RawSignalStrengthInDBm());
@@ -666,7 +675,6 @@ void FlutterBluePlusWinrtPlugin::OnAdvertisementReceived(
                 channel_->InvokeMethod("OnScanResponse", std::make_unique<flutter::EncodableValue>(response));
             }
         } catch (...) {}
-    }();
 }
 
 void FlutterBluePlusWinrtPlugin::OnAdvertisementStopped(
@@ -1128,11 +1136,19 @@ std::string FlutterBluePlusWinrtPlugin::uint64_to_mac_string(uint64_t addr) {
 }
 
 void FlutterBluePlusWinrtPlugin::OnConnectionStatusChanged(const BluetoothLEDevice& device, const IInspectable&) {
-    // Capture device by value to avoid dangling references
-    [this, alive = is_alive_](BluetoothLEDevice d) -> winrt::fire_and_forget {
-        co_await ui_thread_;
-        if (!*alive) co_return;
+    DispatchConnectionStatus(this, is_alive_, device);
+}
 
+winrt::fire_and_forget FlutterBluePlusWinrtPlugin::DispatchConnectionStatus(
+    FlutterBluePlusWinrtPlugin* self,
+    std::shared_ptr<std::atomic<bool>> alive,
+    BluetoothLEDevice device) {
+    co_await self->ui_thread_;
+    if (!*alive) co_return;
+    self->HandleConnectionStatus(device);
+}
+
+void FlutterBluePlusWinrtPlugin::HandleConnectionStatus(BluetoothLEDevice d) {
         std::string remote_id = uint64_to_mac_string(d.BluetoothAddress());
         flutter::EncodableMap connection_state;
         connection_state[flutter::EncodableValue("remote_id")] = flutter::EncodableValue(remote_id);
@@ -1211,7 +1227,6 @@ void FlutterBluePlusWinrtPlugin::OnConnectionStatusChanged(const BluetoothLEDevi
             connection_state[flutter::EncodableValue("connection_state")] = flutter::EncodableValue(0);
             channel_->InvokeMethod("OnConnectionStateChanged", std::make_unique<flutter::EncodableValue>(connection_state));
         }
-    }(device);
 }
 
 winrt::fire_and_forget FlutterBluePlusWinrtPlugin::DiscoverServicesAsync(
@@ -1295,10 +1310,25 @@ winrt::fire_and_forget FlutterBluePlusWinrtPlugin::DiscoverServicesAsync(
 }
 
 void FlutterBluePlusWinrtPlugin::OnCharacteristicValueChanged(std::string remote_id, const GattCharacteristic& sender, const GattValueChangedEventArgs& args) {
-    [this, remote_id, sender, args, alive = is_alive_]() -> winrt::fire_and_forget {
+    DispatchCharacteristicValue(this, is_alive_, remote_id, sender, args);
+}
+
+winrt::fire_and_forget FlutterBluePlusWinrtPlugin::DispatchCharacteristicValue(
+    FlutterBluePlusWinrtPlugin* self,
+    std::shared_ptr<std::atomic<bool>> alive,
+    std::string remote_id,
+    GattCharacteristic sender,
+    GattValueChangedEventArgs args) {
+    co_await self->ui_thread_;
+    if (!*alive) co_return;
+    self->HandleCharacteristicValue(std::move(remote_id), sender, args);
+}
+
+void FlutterBluePlusWinrtPlugin::HandleCharacteristicValue(
+    std::string remote_id,
+    GattCharacteristic sender,
+    GattValueChangedEventArgs args) {
         try {
-            co_await ui_thread_;
-            if (!*alive) co_return;
             flutter::EncodableMap response;
             response[flutter::EncodableValue("remote_id")] = flutter::EncodableValue(remote_id);
             response[flutter::EncodableValue("service_uuid")] = flutter::EncodableValue(utils::to_uuid_string(sender.Service().Uuid()));
@@ -1310,14 +1340,26 @@ void FlutterBluePlusWinrtPlugin::OnCharacteristicValueChanged(std::string remote
             response[flutter::EncodableValue("error_string")] = flutter::EncodableValue("GATT_SUCCESS");
             channel_->InvokeMethod("OnCharacteristicReceived", std::make_unique<flutter::EncodableValue>(response));
         } catch(...) {}
-    }();
 }
 
 void FlutterBluePlusWinrtPlugin::OnMaxPduSizeChanged(std::string remote_id, const GattSession& sender, const IInspectable&) {
-    [this, remote_id, sender, alive = is_alive_]() -> winrt::fire_and_forget {
+    DispatchMaxPduSize(this, is_alive_, remote_id, sender);
+}
+
+winrt::fire_and_forget FlutterBluePlusWinrtPlugin::DispatchMaxPduSize(
+    FlutterBluePlusWinrtPlugin* self,
+    std::shared_ptr<std::atomic<bool>> alive,
+    std::string remote_id,
+    GattSession sender) {
+    co_await self->ui_thread_;
+    if (!*alive) co_return;
+    self->HandleMaxPduSize(std::move(remote_id), sender);
+}
+
+void FlutterBluePlusWinrtPlugin::HandleMaxPduSize(
+    std::string remote_id,
+    GattSession sender) {
         try {
-            co_await ui_thread_;
-            if (!*alive) co_return;
             flutter::EncodableMap response;
             response[flutter::EncodableValue("remote_id")] = flutter::EncodableValue(remote_id);
             response[flutter::EncodableValue("mtu")] = flutter::EncodableValue(static_cast<int32_t>(sender.MaxPduSize()));
@@ -1326,7 +1368,6 @@ void FlutterBluePlusWinrtPlugin::OnMaxPduSizeChanged(std::string remote_id, cons
             response[flutter::EncodableValue("error_string")] = flutter::EncodableValue("");
             channel_->InvokeMethod("OnMtuChanged", std::make_unique<flutter::EncodableValue>(response));
         } catch(...) {}
-    }();
 }
 
 winrt::fire_and_forget FlutterBluePlusWinrtPlugin::SetNotifyValueAsync(std::shared_ptr<flutter::EncodableMap> args_ptr) {

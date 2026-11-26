@@ -12,6 +12,9 @@ import 'package:chameleonultragui/gui/page/tools.dart';
 import 'package:chameleonultragui/gui/page/plugins.dart';
 import 'package:chameleonultragui/helpers/font.dart';
 import 'package:chameleonultragui/helpers/general.dart';
+import 'package:chameleonultragui/helpers/app_update.dart';
+import 'package:chameleonultragui/helpers/lifecycle_policy.dart';
+import 'package:chameleonultragui/helpers/plus_data_migration.dart';
 import 'package:chameleonultragui/helpers/window_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -46,6 +49,7 @@ import 'package:chameleonultragui/sync/sync_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await migrateOriginalDataIfNeeded();
   final sharedPreferencesProvider = SharedPreferencesProvider();
   await sharedPreferencesProvider.load();
   await WindowStateKeeper.instance.restore();
@@ -71,7 +75,8 @@ class ChameleonGUI extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) => ChameleonGUIState(_sharedPreferencesProvider)
             // Remote data changed settings, cards, ...: rebuild everything.
-            ..watchSync(_sync),
+            ..watchSync(_sync)
+            ..checkAppUpdate(),
         ),
       ],
       child: MainPage(sharedPreferencesProvider: _sharedPreferencesProvider),
@@ -93,6 +98,8 @@ class ChameleonGUIState extends ChangeNotifier {
 
   bool devMode = false;
   double? progress; // DFU
+  int _communicatorGeneration = -1;
+  AppUpdateInfo? appUpdate;
 
   // Flashing easter egg
   bool easterEgg = false;
@@ -105,6 +112,17 @@ class ChameleonGUIState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Starts a silent, bounded update check. Failures leave [appUpdate] null.
+  void checkAppUpdate() {
+    unawaited(() async {
+      final info = await AppUpdateChecker().check();
+      if (info != null && info.latestVersion != appUpdate?.latestVersion) {
+        appUpdate = info;
+        notifyListeners();
+      }
+    }());
+  }
+
   void watchSync(SyncService sync) {
     sync.onRemoteChange = (collections) {
       if (collections.contains('plugins')) PluginStore.remoteChanges.value++;
@@ -115,10 +133,15 @@ class ChameleonGUIState extends ChangeNotifier {
   void onConnectorStateChanged() {
     final current = connector;
     if (current != null && current.connected && !current.isDFU) {
-      communicator ??= ChameleonCommunicator(log!, port: current);
+      final generation = current.connectionGeneration;
+      if (communicator == null || generation != _communicatorGeneration) {
+        communicator = ChameleonCommunicator(log!, port: current);
+      }
+      _communicatorGeneration = generation;
     }
     if (current == null || !current.connected) {
       communicator = null;
+      _communicatorGeneration = -1;
       progress = null;
     }
     notifyListeners();
@@ -150,11 +173,15 @@ class ChameleonGUIState extends ChangeNotifier {
 
   Future<void> disconnect({bool manual = false}) async {
     final suppressedPort = manual ? connector?.activeDevicePort : null;
-    await connector?.performDisconnect();
-    if (manual && suppressedPort != null) {
-      _suppressedAutoReconnectPort = suppressedPort;
+    if (manual) {
+      if (suppressedPort != null) {
+        _suppressedAutoReconnectPort = suppressedPort;
+      }
+      await connector?.suppressAutoReconnect();
     }
+    await connector?.performDisconnect();
     communicator = null;
+    _communicatorGeneration = -1;
     progress = null;
     notifyListeners();
   }
@@ -207,8 +234,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached ||
-        state == AppLifecycleState.paused) {
+    if (shouldShutdownOnLifecycle(state)) {
       _shutdown();
     }
   }
@@ -389,7 +415,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     } catch (_) {}
 
     return MaterialApp(
-      title: 'Chameleon Ultra GUI', // App Name
+      title: 'Chameleon Ultra GUI Plus', // App Name
       locale: widget.sharedPreferencesProvider.getLocale(),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,

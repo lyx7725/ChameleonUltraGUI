@@ -22,7 +22,8 @@ class NativeSerial extends AbstractSerial {
       }
     } catch (_) {}
     try {
-      if (candidate.macAddress != null) {
+      if (candidate.macAddress != null &&
+          candidate.macAddress!.isNotEmpty) {
         return true;
       }
     } catch (_) {}

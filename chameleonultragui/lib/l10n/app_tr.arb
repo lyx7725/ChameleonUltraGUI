@@ -88,6 +88,7 @@
   "auto": "Otomatik",
   "restart_now": "\u015eimdi yendien ba\u015flat",
   "about_text": "Bu ara\u00e7, Flutter ile yaz\u0131lm\u0131\u015f, Masa\u00fcst\u00fc ve Mobil cihazlarda \u00e7al\u0131\u015fan Chameleon Ultra'n\u0131z\u0131 grafiksel olarak y\u00f6netmenizi ve yap\u0131land\u0131rman\u0131z\u0131 sa\u011flar.",
+  "independent_fork_notice": "Independent community build based on the upstream open-source project. Not an official release.",
   "version": "Versiyon",
   "developed_by": "Geli\u015ftiren:",
   "license": "Lisans",

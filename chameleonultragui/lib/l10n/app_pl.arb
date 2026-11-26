@@ -87,6 +87,7 @@
   "auto": "Automatyczny",
   "restart_now": "Uruchom ponownie teraz",
   "about_text": "Narz\u0119dzie do graficznego zarz\u0105dzania i konfigurowania Chameleon Ultra, napisane w Flutter i uruchamiane na komputerze stacjonarnym i urz\u0105dzeniu przeno\u015bnym.",
+  "independent_fork_notice": "Independent community build based on the upstream open-source project. Not an official release.",
   "version": "Wersja",
   "developed_by": "Stworzone przez",
   "license": "Licencja",

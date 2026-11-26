@@ -99,7 +99,8 @@ class WindowsSerial extends AbstractSerial {
   }
 
   void _startBle() {
-    if (_route.usbPresent ||
+    if (_route.autoReconnectSuppressed ||
+        _route.usbPresent ||
         nativeSerial.connected ||
         nativeSerial.pendingConnection) {
       return;
@@ -110,8 +111,15 @@ class WindowsSerial extends AbstractSerial {
     }
   }
 
+  @override
+  Future<void> suppressAutoReconnect() async {
+    _route.userDisconnected();
+    _usbRetryAfter = null;
+    await bleSerial.suspendAutoReconnect();
+  }
+
   Future<void> _pollUsb() async {
-    if (_shuttingDown) {
+    if (_shuttingDown || _route.autoReconnectSuppressed) {
       return;
     }
     if (_usbProbeBusy) {
@@ -174,7 +182,8 @@ class WindowsSerial extends AbstractSerial {
   }
 
   Future<bool> _connectUsb(Chameleon device, {required String reason}) async {
-    if (_usbConnectInFlight ||
+    if (_route.autoReconnectSuppressed ||
+        _usbConnectInFlight ||
         nativeSerial.connected ||
         nativeSerial.pendingConnection ||
         bleSerial.connected) {
@@ -186,6 +195,12 @@ class WindowsSerial extends AbstractSerial {
       await bleSerial.suspendForUsb();
       final ok = await _connectNativePort(device.port);
       if (ok) {
+        if (_route.autoReconnectSuppressed) {
+          await nativeSerial.performDisconnect();
+          _usbConnected = false;
+          _route.usbPresent = false;
+          return false;
+        }
         _usbConnected = true;
         _usbRetryAfter = null;
         BleTrace.instance.log('route', 'selected=usb reason=$reason');
@@ -195,7 +210,9 @@ class WindowsSerial extends AbstractSerial {
       _usbRetryAfter = DateTime.now().add(const Duration(seconds: 10));
       _route.usbPresent = false;
       BleTrace.instance.log('route', 'selected=ble reason=usb-connect-failed');
-      bleSerial.resumeAfterUsb();
+      if (!_route.autoReconnectSuppressed) {
+        bleSerial.resumeAfterUsb();
+      }
       return false;
     } finally {
       _usbConnectInFlight = false;
@@ -226,7 +243,9 @@ class WindowsSerial extends AbstractSerial {
     final native = await nativeSerial.performDisconnect();
     _usbConnected = false;
     _route.markBleConnected(false);
-    if (!_usbConnectInFlight && !_shuttingDown) {
+    if (!_usbConnectInFlight &&
+        !_shuttingDown &&
+        !_route.autoReconnectSuppressed) {
       _route.usbPresent = false;
       bleSerial.resumeAfterUsb();
       _startBle();
@@ -248,6 +267,8 @@ class WindowsSerial extends AbstractSerial {
 
   @override
   Future<bool> connectSpecificDevice(dynamic devicePort) async {
+    _route.userConnected();
+    _usbRetryAfter = null;
     final port = devicePort.toString();
     if (RegExp(r'^COM\d+$', caseSensitive: false).hasMatch(port)) {
       if (nativeSerial.connected &&
@@ -264,6 +285,7 @@ class WindowsSerial extends AbstractSerial {
         nativeSerial.pendingConnection) {
       return false;
     }
+    bleSerial.resumeAutoReconnect();
     return await bleSerial.connectSpecificDevice(devicePort);
   }
 
@@ -299,6 +321,9 @@ class WindowsSerial extends AbstractSerial {
   @override
   ChameleonDevice get device =>
       bleSerial.connected ? bleSerial.device : nativeSerial.device;
+
+  @override
+  int get connectionGeneration => bleSerial.connectionGeneration;
 
   @override
   bool get connected => bleSerial.connected || nativeSerial.connected;

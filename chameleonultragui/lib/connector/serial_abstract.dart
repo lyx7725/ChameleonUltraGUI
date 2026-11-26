@@ -29,6 +29,7 @@ abstract class AbstractSerial {
   ConnectionType connectionType = ConnectionType.none;
   dynamic messageCallback;
   dynamic activeDevicePort;
+  int connectionGeneration = 0;
   VoidCallback? connectionStateCallback;
 
   AbstractSerial({required this.log});
@@ -40,6 +41,10 @@ abstract class AbstractSerial {
   Future<bool> performDisconnect() async {
     return false;
   }
+
+  /// Called before a user-initiated disconnect so background discovery stops
+  /// reconnecting until [connectSpecificDevice] is invoked again.
+  Future<void> suppressAutoReconnect() async {}
 
   bool isManualConnectionSupported();
 

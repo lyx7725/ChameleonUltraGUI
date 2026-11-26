@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:math' as math;
@@ -146,6 +147,37 @@ class WindowStateKeeper {
   static const _kWidth = 'window_rect_width';
   static const _kHeight = 'window_rect_height';
   static const _kMaximized = 'window_rect_maximized';
+  static const _kState = 'window_rect_state';
+
+  static (int, int, int, int, bool)? _decodeState(String? raw) {
+    if (raw == null) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) {
+        return null;
+      }
+      final x = decoded['x'];
+      final y = decoded['y'];
+      final width = decoded['width'];
+      final height = decoded['height'];
+      final maximized = decoded['maximized'];
+      if (x is! int ||
+          y is! int ||
+          width is! int ||
+          height is! int ||
+          width < 400 ||
+          height < 300 ||
+          width > 16384 ||
+          height > 16384) {
+        return null;
+      }
+      return (x, y, width, height, maximized is bool && maximized);
+    } catch (_) {
+      return null;
+    }
+  }
 
   int _hwnd = 0;
   Timer? _timer;
@@ -175,14 +207,28 @@ class WindowStateKeeper {
     }
 
     final prefs = _prefs = await SharedPreferences.getInstance();
-    final width = prefs.getInt(_kWidth) ?? 0;
-    final height = prefs.getInt(_kHeight) ?? 0;
-    if (width < 400 || height < 300) {
-      return;
+    final encoded = _decodeState(prefs.getString(_kState));
+    final int width;
+    final int height;
+    final int x;
+    final int y;
+    final bool maximized;
+    if (encoded != null) {
+      x = encoded.$1;
+      y = encoded.$2;
+      width = encoded.$3;
+      height = encoded.$4;
+      maximized = encoded.$5;
+    } else {
+      width = prefs.getInt(_kWidth) ?? 0;
+      height = prefs.getInt(_kHeight) ?? 0;
+      if (width < 400 || height < 300) {
+        return;
+      }
+      x = prefs.getInt(_kX) ?? 0;
+      y = prefs.getInt(_kY) ?? 0;
+      maximized = prefs.getBool(_kMaximized) ?? false;
     }
-
-    final x = prefs.getInt(_kX) ?? 0;
-    final y = prefs.getInt(_kY) ?? 0;
     final restoredWidth = math.max(width, 640);
     final restoredHeight = math.max(height, 480);
 
@@ -214,7 +260,7 @@ class WindowStateKeeper {
       _swpNoZOrder | _swpNoActivate,
     );
 
-    if (prefs.getBool(_kMaximized) ?? false) {
+    if (maximized) {
       _user32.lookupFunction<_ShowWindowNative, _ShowWindowDart>('ShowWindow')(
         _hwnd,
         _swShowMaximized,
@@ -225,7 +271,7 @@ class WindowStateKeeper {
     _savedY = y;
     _savedWidth = restoredWidth;
     _savedHeight = restoredHeight;
-    _savedMaximized = prefs.getBool(_kMaximized) ?? false;
+    _savedMaximized = maximized;
   }
 
   void start() {
@@ -301,11 +347,16 @@ class WindowStateKeeper {
       if (prefs == null) {
         return;
       }
-      prefs.setInt(_kX, _savedX);
-      prefs.setInt(_kY, _savedY);
-      prefs.setInt(_kWidth, _savedWidth);
-      prefs.setInt(_kHeight, _savedHeight);
-      prefs.setBool(_kMaximized, _savedMaximized);
+      prefs.setString(
+        _kState,
+        jsonEncode({
+          'x': _savedX,
+          'y': _savedY,
+          'width': _savedWidth,
+          'height': _savedHeight,
+          'maximized': _savedMaximized,
+        }),
+      );
     } finally {
       calloc.free(placement);
     }

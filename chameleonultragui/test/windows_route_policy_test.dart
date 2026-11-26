@@ -49,5 +49,14 @@ void main() {
       expect(decision.reason, 'usb-removed');
       expect(policy.usbPresent, isFalse);
     });
+
+    test('manual disconnect suppresses reconnects until a manual connect', () {
+      final policy = WindowsRoutePolicy();
+      expect(policy.autoReconnectSuppressed, isFalse);
+      policy.userDisconnected();
+      expect(policy.autoReconnectSuppressed, isTrue);
+      policy.userConnected();
+      expect(policy.autoReconnectSuppressed, isFalse);
+    });
   });
 }

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:chameleonultragui/connector/serial_abstract.dart';
@@ -55,7 +54,7 @@ Future<void> _loadFonts() async {
 
   final sep = Platform.pathSeparator;
   final exe = Platform.resolvedExecutable;
-  final marker = '${sep}bin${sep}cache${sep}';
+  final marker = '${sep}bin${sep}cache$sep';
   final idx = exe.toLowerCase().indexOf(marker.toLowerCase());
   final root =
       Platform.environment['FLUTTER_ROOT'] ??
@@ -374,9 +373,7 @@ void main() {
     _checkNoHardcodedColors();
   });
 
-  testWidgets('home theme combinations', skip: !Platform.isWindows, (
-    tester,
-  ) async {
+  testWidgets('home theme combinations', (tester) async {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
@@ -388,10 +385,7 @@ void main() {
     }
   });
 
-  testWidgets(
-    'home default color by mode and size',
-    skip: !Platform.isWindows,
-    (tester) async {
+  testWidgets('home default color by mode and size', (tester) async {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);

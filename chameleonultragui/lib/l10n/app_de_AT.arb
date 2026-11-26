@@ -88,6 +88,7 @@
   "auto": "Auto",
   "restart_now": "Jetzt neich stoartn",
   "about_text": "A werkzeich zum graphischn verwalten von deim Chameleon Ultra, geschriebn in Flutter und rennt am Pc und am Taschntelefon.",
+  "independent_fork_notice": "Independent community build based on the upstream open-source project. Not an official release.",
   "version": "Version",
   "developed_by": "Entw\u00fcckid von",
   "license": "Lizenz",

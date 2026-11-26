@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:chameleonultragui/connector/ble_trace.dart';
+import 'package:chameleonultragui/connector/ble_watch_state.dart';
 import 'package:chameleonultragui/connector/serial_abstract.dart';
 import 'package:chameleonultragui/helpers/ble_pairing.dart';
 import 'package:chameleonultragui/helpers/ble_status.dart';
@@ -48,8 +49,7 @@ class WindowsBLESerial extends AbstractSerial {
   Chameleon? _activeInfo;
 
   bool Function()? isOtherBusy;
-  bool _watchEnabled = false;
-  bool _watching = false;
+  final BleWatchState _watch = BleWatchState();
   bool _usbSuspended = false;
   bool _directRunning = false;
   Completer<void>? _activeWatch;
@@ -177,10 +177,26 @@ class WindowsBLESerial extends AbstractSerial {
       return;
     }
     _usbSuspended = true;
-    if (_watchEnabled || connectingNow) {
+    if (_watch.desired || connectingNow) {
       _trace('usb.priority', 'suspending BLE for USB');
     }
-    await _stopScan();
+    await _suspendWatching();
+    pendingConnection = false;
+    if (!connected) {
+      await _cleanupForConnect();
+    }
+    BleStatus.set(BlePhase.waiting);
+    notifyConnectionStateChanged();
+  }
+
+  /// Stops discovery and reconnection after the user explicitly disconnected.
+  Future<void> suspendAutoReconnect() async {
+    if (_usbSuspended && !_watch.desired) {
+      return;
+    }
+    _usbSuspended = true;
+    _trace('manual.disconnect', 'suspending BLE auto reconnect');
+    await _suspendWatching();
     pendingConnection = false;
     if (!connected) {
       await _cleanupForConnect();
@@ -198,40 +214,66 @@ class WindowsBLESerial extends AbstractSerial {
     startWatching();
   }
 
+  /// Resumes discovery after the user manually connects again.
+  void resumeAutoReconnect() {
+    if (!_usbSuspended) {
+      return;
+    }
+    _usbSuspended = false;
+    _trace('manual.connect', 'resuming BLE auto reconnect');
+    startWatching();
+  }
+
   Future<void> shutdown() async {
-    _watchEnabled = false;
     _usbSuspended = true;
-    await _stopScan();
+    await _suspendWatching();
     await performDisconnect();
   }
 
+  /// Stops the desired scan and releases the active five-minute waiter.
+  Future<void> _suspendWatching() async {
+    _watch.stop();
+    final active = _activeWatch;
+    if (active != null && !active.isCompleted) {
+      active.complete();
+    }
+    await _stopScan();
+  }
+
   void startWatching() {
-    if (_watchEnabled || _usbSuspended) {
+    if (_watch.desired || _usbSuspended) {
       return;
     }
-    _watchEnabled = true;
+    _watch.start();
     unawaited(_watchLoop());
     unawaited(_startDirectConnect());
   }
 
   Future<void> _watchLoop() async {
-    if (_watching) {
+    if (!_watch.begin()) {
       return;
     }
-    _watching = true;
     _trace('watch.loop', 'started');
-    while (_watchEnabled) {
-      if (connected ||
-          _usbSuspended ||
-          _reconnecting ||
-          (isOtherBusy?.call() ?? false)) {
-        await Future<void>.delayed(const Duration(milliseconds: 500));
-        continue;
+    while (true) {
+      while (_watch.desired) {
+        if (connected ||
+            _usbSuspended ||
+            _reconnecting ||
+            (isOtherBusy?.call() ?? false)) {
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          continue;
+        }
+        await _watchOnce();
+        await Future<void>.delayed(const Duration(milliseconds: 300));
       }
-      await _watchOnce();
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      _watch.end();
+      if (!_watch.desired) {
+        break;
+      }
+      if (!_watch.begin()) {
+        break;
+      }
     }
-    _watching = false;
     _trace('watch.loop', 'stopped');
   }
 
@@ -390,7 +432,7 @@ class WindowsBLESerial extends AbstractSerial {
     }
     _directRunning = true;
     _trace('direct.loop', 'address=$address');
-    while (_watchEnabled) {
+    while (_watch.desired) {
       if (connected ||
           _usbSuspended ||
           _connecting ||
@@ -449,6 +491,9 @@ class WindowsBLESerial extends AbstractSerial {
           'ms=${handshakeWatch.elapsedMilliseconds}',
         );
 
+        if (_usbSuspended) {
+          throw 'suspended';
+        }
         _setConnected(address, info, notify: true);
         _trace('direct.ok', 'total_ms=${total.elapsedMilliseconds}');
         try {
@@ -560,6 +605,9 @@ class WindowsBLESerial extends AbstractSerial {
       await Future<void>.delayed(const Duration(milliseconds: 100));
       await _handshake(_rx!, retries: 1);
 
+      if (_usbSuspended) {
+        throw 'suspended';
+      }
       _setConnected(devicePort, info, notify: true);
       _trace('legacy.ok', 'ms=${stopwatch.elapsedMilliseconds}');
       return true;
@@ -658,7 +706,10 @@ class WindowsBLESerial extends AbstractSerial {
         stage = 'handshake';
         await _handshake(_rx!, retries: 2);
 
-        _setConnected(port, info, notify: !reconnect);
+        if (_usbSuspended) {
+          throw 'suspended';
+        }
+        _setConnected(port, info, notify: true);
         _trace(
           'attempt.ok',
           'attempt=$attempt total_ms=${stopwatch.elapsedMilliseconds}',
@@ -842,6 +893,7 @@ class WindowsBLESerial extends AbstractSerial {
 
   void _setConnected(dynamic port, Chameleon info, {required bool notify}) {
     connected = true;
+    connectionGeneration++;
     pendingConnection = false;
     portName = port.toString();
     device = info.device;
@@ -853,7 +905,7 @@ class WindowsBLESerial extends AbstractSerial {
     BleStatus.set(BlePhase.waiting);
     unawaited(() async {
       await _saveLastDevice(port.toString(), info);
-      if (!_directRunning && _watchEnabled) {
+      if (!_directRunning && _watch.desired) {
         await _startDirectConnect();
       }
     }());
@@ -891,6 +943,9 @@ class WindowsBLESerial extends AbstractSerial {
     try {
       for (var i = 0; i < 5; i++) {
         try {
+          if (_usbSuspended) {
+            throw 'suspended';
+          }
           final bluetoothDevice = _device;
           if (bluetoothDevice == null) {
             throw 'no device object';
@@ -902,6 +957,10 @@ class WindowsBLESerial extends AbstractSerial {
           final uart = await _discover(bluetoothDevice, retries: 1);
           await _subscribeService(uart, retries: 1);
           await _handshake(_rx!, retries: 1);
+          if (_usbSuspended) {
+            throw 'suspended';
+          }
+          _setConnected(port, info, notify: true);
           _trace(
             'reconnect.ok',
             'attempt=${i + 1} ms=${stopwatch.elapsedMilliseconds}',

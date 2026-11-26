@@ -86,6 +86,7 @@
   "auto": "Auto",
   "restart_now": "Nu opnieuw opstarten",
   "about_text": "Een Hulpmiddel om grafisch je Chameleon Ultra te beheren en configureren. Geschreven in Flutter en werkend op PC en Mobiel.",
+  "independent_fork_notice": "Independent community build based on the upstream open-source project. Not an official release.",
   "version": "Versie",
   "developed_by": "Ontwikkeld door",
   "license": "Licentie",

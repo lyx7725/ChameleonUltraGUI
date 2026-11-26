@@ -87,6 +87,7 @@
   "auto": "Auto",
   "restart_now": "Reinicia ara",
   "about_text": "Una eina per gestionar i configurar gr\u00e0ficament el Chameleon Ultra, desenvolupada a Flutter per a ordinadors i m\u00f2bils.",
+  "independent_fork_notice": "Independent community build based on the upstream open-source project. Not an official release.",
   "version": "Versi\u00f3",
   "developed_by": "Desenvolupat per",
   "license": "Llic\u00e8ncia",

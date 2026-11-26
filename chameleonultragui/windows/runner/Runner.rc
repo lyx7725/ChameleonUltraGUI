@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "Chameleon Development" "\0"
-            VALUE "FileDescription", "Chameleon Ultra GUI" "\0"
+            VALUE "CompanyName", "lyx7725" "\0"
+            VALUE "FileDescription", "Chameleon Ultra GUI Plus" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "chameleonultragui" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2023 Chameleon Development. All rights reserved." "\0"
-            VALUE "OriginalFilename", "chameleonultragui.exe" "\0"
-            VALUE "ProductName", "chameleonultragui" "\0"
+            VALUE "InternalName", "ChameleonUltraGUIPlus" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2023 Chameleon Development and contributors. GPL-3.0." "\0"
+            VALUE "OriginalFilename", "ChameleonUltraGUIPlus.exe" "\0"
+            VALUE "ProductName", "Chameleon Ultra GUI Plus" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

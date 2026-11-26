@@ -8,7 +8,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
-import 'package:chameleonultragui/helpers/open_collective.dart';
 import 'package:chameleonultragui/main.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
@@ -41,27 +40,8 @@ class SettingsMainPageState extends State<SettingsMainPage> {
     super.initState();
   }
 
-  Future<(String, List<Map<String, String>>, PackageInfo)>
-      getFutureData() async {
-    return (
-      await fetchOCnames(),
-      await fetchContributors(),
-      await PackageInfo.fromPlatform()
-    );
-  }
-
-  Future<String> fetchOCnames() async {
-    final List<String> names = await fetchOpenCollectiveContributors();
-
-    if (names.isEmpty && mounted) {
-      return AppLocalizations.of(context)!.failed_to_fetch_oc_contributors;
-    }
-
-    String finalNames = "";
-    for (String name in names) {
-      finalNames += "$name, ";
-    }
-    return finalNames.substring(0, finalNames.length - 2);
+  Future<(List<Map<String, String>>, PackageInfo)> getFutureData() async {
+    return (await fetchContributors(), await PackageInfo.fromPlatform());
   }
 
   Future<List<Map<String, String>>> fetchContributors() async {
@@ -464,6 +444,19 @@ class SettingsMainPageState extends State<SettingsMainPage> {
                 ),
               ),
               const SizedBox(height: 10),
+              if (appState.appUpdate?.isNewer == true) ...[
+                TextButton.icon(
+                  onPressed: () => launchUrl(
+                    Uri.parse(appState.appUpdate!.releaseUrl),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  icon: const Icon(Icons.system_update),
+                  label: Text(
+                    '${localizations.update_available}: ${appState.appUpdate!.latestVersion}',
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
               TextButton(
                 onPressed: () => showDialog<String>(
                   context: context,
@@ -483,15 +476,19 @@ class SettingsMainPageState extends State<SettingsMainPage> {
                             return ErrorPage(
                                 errorMessage: snapshot.error.toString());
                           } else {
-                            final (names, contributors, packageInfo) =
-                                snapshot.data;
+                            final (contributors, packageInfo) = snapshot.data;
                             return SingleChildScrollView(
                                 child: Column(
                               children: [
-                                const Text('Chameleon Ultra GUI',
+                                const Text('Chameleon Ultra GUI Plus',
                                     style:
                                         TextStyle(fontWeight: FontWeight.bold)),
                                 Text(localizations.about_text),
+                                const SizedBox(height: 6),
+                                Text(
+                                  localizations.independent_fork_notice,
+                                  textAlign: TextAlign.center,
+                                ),
                                 const SizedBox(height: 10),
                                 Text('${localizations.version}:'),
                                 Text(
@@ -515,19 +512,15 @@ class SettingsMainPageState extends State<SettingsMainPage> {
                                     },
                                     child: const Text(
                                         'https://github.com/lyx7725/ChameleonUltraGUI')),
-                                const SizedBox(height: 30),
+                                const SizedBox(height: 10),
                                 GestureDetector(
                                     onTap: () async {
                                       await launchUrl(Uri.parse(
-                                          'https://opencollective.com/chameleon-ultra-gui'));
+                                          'https://github.com/GameTec-live/ChameleonUltraGUI'));
                                     },
-                                    child:
-                                        Text(localizations.thanks_for_support)),
-                                const SizedBox(height: 10),
-                                Text(names,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 10),
+                                    child: const Text(
+                                        'Upstream: GameTec-live/ChameleonUltraGUI')),
+                                const SizedBox(height: 30),
                                 Text('${localizations.code_contributors}:'),
                                 const SizedBox(height: 10),
                                 DeveloperList(avatars: contributors),

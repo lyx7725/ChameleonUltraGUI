@@ -20,6 +20,15 @@ class WindowsRouteDecision {
 class WindowsRoutePolicy {
   bool usbPresent = false;
   bool bleConnected = false;
+  bool autoReconnectSuppressed = false;
+
+  void userDisconnected() {
+    autoReconnectSuppressed = true;
+  }
+
+  void userConnected() {
+    autoReconnectSuppressed = false;
+  }
 
   WindowsRouteDecision startup({required bool usbFound}) {
     usbPresent = usbFound;

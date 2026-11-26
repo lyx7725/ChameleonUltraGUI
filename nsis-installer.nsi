@@ -1,9 +1,9 @@
 !include "MUI2.nsh"
 ; The name of the installer
-Name "Chameleon Ultra GUI"
+Name "Chameleon Ultra GUI Plus"
 
 ; The file to write
-OutFile "chameleonultragui-setup-win.exe"
+OutFile "ChameleonUltraGUIPlus-setup-win.exe"
 
 ; Request application privileges for Windows Vista and higher
 RequestExecutionLevel admin
@@ -12,11 +12,11 @@ RequestExecutionLevel admin
 Unicode True
 
 ; The default installation directory
-InstallDir $PROGRAMFILES\chameleonultragui
+InstallDir $PROGRAMFILES\ChameleonUltraGUIPlus
 
 ; Registry key to check for directory (so if you install again, it will 
 ; overwrite the old one automatically)
-InstallDirRegKey HKLM "Software\chameleonultragui" "Install_Dir"
+InstallDirRegKey HKLM "Software\ChameleonUltraGUIPlus" "Install_Dir"
 !define MUI_ICON "chameleonultragui\windows\runner\resources\app_icon.ico"
 
 ;--------------------------------
@@ -36,7 +36,7 @@ InstallDirRegKey HKLM "Software\chameleonultragui" "Install_Dir"
 
 
 ; The stuff to install
-Section "Chameleon Ultra GUI (required)"
+Section "Chameleon Ultra GUI Plus (required)"
 
   SectionIn RO
   
@@ -48,25 +48,25 @@ Section "Chameleon Ultra GUI (required)"
   File "LICENSE"
   
   ; Write the installation path into the registry
-  WriteRegStr HKLM SOFTWARE\chameleonultragui "Install_Dir" "$INSTDIR"
+  WriteRegStr HKLM SOFTWARE\ChameleonUltraGUIPlus "Install_Dir" "$INSTDIR"
   
   ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\chameleonultragui" "DisplayName" "Chameleon Ultra GUI"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\chameleonultragui" "UninstallString" '"$INSTDIR\uninstall.exe"'
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\chameleonultragui" "NoModify" 1
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\chameleonultragui" "NoRepair" 1
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ChameleonUltraGUIPlus" "DisplayName" "Chameleon Ultra GUI Plus"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ChameleonUltraGUIPlus" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ChameleonUltraGUIPlus" "NoModify" 1
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ChameleonUltraGUIPlus" "NoRepair" 1
   WriteUninstaller "$INSTDIR\uninstall.exe"
   
 SectionEnd
 
 ; Optional section (can be disabled by the user)
 Section "Start Menu Shortcuts"
-  CreateShortcut "$SMPROGRAMS\Chameleon Ultra GUI.lnk" "$INSTDIR\chameleonultragui.exe"
+  CreateShortcut "$SMPROGRAMS\Chameleon Ultra GUI Plus.lnk" "$INSTDIR\ChameleonUltraGUIPlus.exe"
 SectionEnd
 
 ; Optional section (can be disabled by the user)
 Section "Desktop Shortcut"
-  CreateShortcut "$DESKTOP\Chameleon Ultra GUI.lnk" "$INSTDIR\chameleonultragui.exe"
+  CreateShortcut "$DESKTOP\Chameleon Ultra GUI Plus.lnk" "$INSTDIR\ChameleonUltraGUIPlus.exe"
 SectionEnd
 
 ;--------------------------------
@@ -76,12 +76,12 @@ SectionEnd
 Section "Uninstall"
   
   ; Remove registry keys
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\chameleonultragui"
-  DeleteRegKey HKLM SOFTWARE\chameleonultragui
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ChameleonUltraGUIPlus"
+  DeleteRegKey HKLM SOFTWARE\ChameleonUltraGUIPlus
 
   ; Remove shortcuts, if any
-  Delete "$SMPROGRAMS\Chameleon Ultra GUI.lnk"
-  Delete "$DESKTOP\Chameleon Ultra GUI.lnk"
+  Delete "$SMPROGRAMS\Chameleon Ultra GUI Plus.lnk"
+  Delete "$DESKTOP\Chameleon Ultra GUI Plus.lnk"
 
   ; Remove installation directory and all contents
   RMDir /r "$INSTDIR"

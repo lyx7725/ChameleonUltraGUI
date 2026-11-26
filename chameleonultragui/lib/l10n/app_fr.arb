@@ -87,6 +87,7 @@
   "auto": "Auto",
   "restart_now": "Red\u00e9marrer maintenant",
   "about_text": "Un outil pour g\u00e9rer et configurer graphiquement votre Chameleon Ultra, \u00e9crit en Flutter et fonctionnant sur PC de bureau et t\u00e9l\u00e9phone mobile.",
+  "independent_fork_notice": "Independent community build based on the upstream open-source project. Not an official release.",
   "version": "Version",
   "developed_by": "D\u00e9velopp\u00e9 par",
   "license": "Licence",

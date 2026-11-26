@@ -1,6 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:chameleonultragui/connector/serial_abstract.dart';
 import 'package:chameleonultragui/generated/i18n/app_localizations.dart';
@@ -8,15 +6,11 @@ import 'package:chameleonultragui/gui/page/home_overview.dart';
 import 'package:chameleonultragui/helpers/definitions.dart';
 import 'package:chameleonultragui/sharedprefsprovider.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _widths = [240.0, 280.0, 320.0, 360.0, 412.0];
 const _scales = [1.0, 1.3, 1.5];
-
-late Directory _outDir;
-late Directory _baselineDir;
 
 Future<void> _loadFonts() async {
   const candidates = [
@@ -39,7 +33,7 @@ Future<void> _loadFonts() async {
   )..addFont(rootBundle.load('assets/fonts/RobotoMono-Regular.ttf'))).load();
   final sep = Platform.pathSeparator;
   final exe = Platform.resolvedExecutable;
-  final marker = '${sep}bin${sep}cache${sep}';
+  final marker = '${sep}bin${sep}cache$sep';
   final idx = exe.toLowerCase().indexOf(marker.toLowerCase());
   final root =
       Platform.environment['FLUTTER_ROOT'] ??
@@ -161,9 +155,9 @@ ThemeData _theme() {
   );
 }
 
-Widget _overview() {
+Widget _overviewFor(HomeViewData data) {
   return HomeOverview(
-    data: _data(),
+    data: data,
     loading: false,
     onSelectSlot: (_) {},
     onOpenSavedCards: () {},
@@ -174,6 +168,8 @@ Widget _overview() {
     onCopy: (_) {},
   );
 }
+
+Widget _overview() => _overviewFor(_data());
 
 Widget _app(Widget child, Locale locale, double scale) {
   return MaterialApp(
@@ -279,36 +275,6 @@ Widget _phoneShell(GlobalKey key, Locale locale) {
   );
 }
 
-Future<ui.Image> _capture(WidgetTester tester, GlobalKey key) async {
-  final boundary =
-      key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-  return boundary.toImage(pixelRatio: 1);
-}
-
-Future<void> _save(WidgetTester tester, ui.Image image, String name) async {
-  await tester.runAsync(() async {
-    final data = await image.toByteData(format: ui.ImageByteFormat.png);
-    await File('${_outDir.path}/$name.png')
-        .writeAsBytes(data!.buffer.asUint8List());
-  });
-}
-
-Future<Uint8List> _raw(WidgetTester tester, ui.Image image) async {
-  final data = await tester.runAsync(
-    () => image.toByteData(format: ui.ImageByteFormat.rawRgba),
-  );
-  return data!.buffer.asUint8List();
-}
-
-Future<ui.Image> _decode(WidgetTester tester, String path) async {
-  final codec = await tester.runAsync(() async {
-    final bytes = await File(path).readAsBytes();
-    return ui.instantiateImageCodec(bytes);
-  });
-  final frame = await tester.runAsync(() => codec!.getNextFrame());
-  return frame!.image;
-}
-
 Future<void> _precache(WidgetTester tester) async {
   await tester.runAsync(() async {
     if (find.byType(HomeOverview).evaluate().isNotEmpty) {
@@ -390,21 +356,9 @@ Future<void> _renderAt(
 void main() {
   setUpAll(() async {
     await _loadFonts();
-    _outDir = Directory(
-      '${Directory.systemTemp.path}/chameleon_home_phone_goldens',
-    );
-    if (_outDir.existsSync()) {
-      _outDir.deleteSync(recursive: true);
-    }
-    _outDir.createSync(recursive: true);
-    _baselineDir = Directory(
-      '${Directory.systemTemp.path}/chameleon_home_desktop_baseline',
-    );
   });
 
-  testWidgets('phone device card matrix', skip: !Platform.isWindows, (
-    tester,
-  ) async {
+  testWidgets('phone device card matrix', (tester) async {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
@@ -432,7 +386,7 @@ void main() {
     expect(combinations, _widths.length * _scales.length * locales.length);
   });
 
-  testWidgets('phone golden sizes', skip: !Platform.isWindows, (tester) async {
+  testWidgets('phone card fits compact viewports', (tester) async {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
@@ -440,57 +394,96 @@ void main() {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1.0;
       final key = GlobalKey();
-      await tester.pumpWidget(_phoneShell(key, const Locale('zh')));
+      await tester.pumpWidget(_phoneShell(key, const Locale('en')));
       await tester.pump();
       await _precache(tester);
       await tester.pumpAndSettle();
-      final image = await _capture(tester, key);
-      await _save(
-        tester,
-        image,
-        'home_${size.width.toInt()}x${size.height.toInt()}',
+
+      _assertNoOverflow(tester, 'compact ${size.width.toInt()}');
+      _assertPhoneCard(tester, 'compact ${size.width.toInt()}');
+      final card = tester.getRect(
+        find.byKey(const ValueKey('home_phone_card')),
       );
-      _assertNoOverflow(tester, 'golden ${size.width}');
+      expect(card.left >= 0, isTrue);
+      expect(card.right <= size.width, isTrue);
     }
   });
 
-  testWidgets('desktop pixel regression', skip: !Platform.isWindows, (
+  testWidgets('desktop and medium layouts keep keyed regions in bounds', (
     tester,
   ) async {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
     for (final entry in [
-      (const Size(1280, 800), 'home_1280x800.png', true),
-      (const Size(800, 800), 'home_800x800.png', false),
+      (const Size(1280, 800), true),
+      (const Size(800, 800), false),
     ]) {
       tester.view.physicalSize = entry.$1;
       tester.view.devicePixelRatio = 1.0;
       final key = GlobalKey();
       await tester.pumpWidget(
-        _desktopShell(key, rail: entry.$3, locale: const Locale('en')),
+        _desktopShell(key, rail: entry.$2, locale: const Locale('en')),
       );
       await tester.pump();
       await _precache(tester);
       await tester.pumpAndSettle();
-      final image = await _capture(tester, key);
-      final baselinePath = '${_baselineDir.path}/${entry.$2}';
-      if (!File(baselinePath).existsSync()) {
-        continue;
-      }
-      final baseline = await _decode(tester, baselinePath);
-      final actualBytes = await _raw(tester, image);
-      final baselineBytes = await _raw(tester, baseline);
-      expect(
-        actualBytes.length,
-        baselineBytes.length,
-        reason: 'desktop size differs for ${entry.$1}',
+
+      final label = 'desktop ${entry.$1}';
+      _assertNoOverflow(tester, label);
+      expect(find.byKey(const ValueKey('home_device_panel')), findsOneWidget);
+      expect(find.byKey(const ValueKey('home_current_slot')), findsOneWidget);
+      expect(find.byKey(const ValueKey('home_phone_card')), findsNothing);
+
+      final device = tester.getRect(
+        find.byKey(const ValueKey('home_device_panel')),
       );
-      for (var i = 0; i < actualBytes.length; i++) {
-        if (actualBytes[i] != baselineBytes[i]) {
-          fail('desktop pixels changed at byte $i for ${entry.$1}');
-        }
-      }
+      final slot = tester.getRect(
+        find.byKey(const ValueKey('home_current_slot')),
+      );
+      expect(device.left >= 0, isTrue, reason: label);
+      expect(device.right <= entry.$1.width, isTrue, reason: label);
+      expect(slot.left >= device.right, isTrue, reason: label);
+      expect(slot.right <= entry.$1.width, isTrue, reason: label);
     }
+  });
+
+  testWidgets('home shows demo and unsupported firmware notices', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+
+    await tester.pumpWidget(
+      _app(
+        _overviewFor(_data().copyWith(isDemo: true)),
+        const Locale('en'),
+        1.0,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('home_demo_warning')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('home_capabilities_warning')),
+      findsNothing,
+    );
+
+    await tester.pumpWidget(
+      _app(
+        _overviewFor(
+          _data().copyWith(isDemo: false, capabilitiesSupported: false),
+        ),
+        const Locale('en'),
+        1.0,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('home_demo_warning')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('home_capabilities_warning')),
+      findsOneWidget,
+    );
   });
 }

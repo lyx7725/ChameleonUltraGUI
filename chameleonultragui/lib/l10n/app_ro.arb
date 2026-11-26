@@ -76,6 +76,7 @@
   "retract": "Retragere",
   "restart_now": "Reporni\u021bi acum",
   "about_text": "Un instrument pentru a gestiona grafic \u0219i configura Chameleon Ultra, scris \u00een Flutter \u0219i rul\u00e2nd pe Desktop \u0219i Mobile.",
+  "independent_fork_notice": "Independent community build based on the upstream open-source project. Not an official release.",
   "version": "Versiune",
   "developed_by": "Dezvoltat de",
   "license": "Licen\u021b\u0103",

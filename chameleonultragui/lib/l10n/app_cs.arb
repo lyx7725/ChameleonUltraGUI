@@ -86,6 +86,7 @@
   "auto": "Automaticky",
   "restart_now": "Restartovat nyn\u00ed",
   "about_text": "N\u00e1stroj pro grafickou spr\u00e1vu a konfiguraci va\u0161eho Chameleon Ultra, kter\u00fd je naps\u00e1n ve Flutteru a b\u011b\u017e\u00ed na po\u010d\u00edta\u010di a mobilu.",
+  "independent_fork_notice": "Independent community build based on the upstream open-source project. Not an official release.",
   "version": "Verze",
   "developed_by": "Tv\u00f9rci",
   "license": "Licence",

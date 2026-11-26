@@ -817,7 +817,7 @@ class _HfSniffingMenuState extends State<HfSniffingMenu> {
     return ListView.separated(
       padding: EdgeInsets.zero,
       itemCount: capture.annotatedFrames.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final annotated = capture.annotatedFrames[index];
         return _buildFrameTranscriptEntry(
@@ -845,7 +845,7 @@ class _HfSniffingMenuState extends State<HfSniffingMenu> {
     return ListView.separated(
       padding: EdgeInsets.zero,
       itemCount: capture.nonceGroups.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final group = capture.nonceGroups[index];
         return _buildPanel(

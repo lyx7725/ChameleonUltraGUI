@@ -76,6 +76,7 @@
   "auto": "Automatisk",
   "restart_now": "Genstart nu",
   "about_text": "Et v\u00e6rkt\u00f8j til grafisk at administrere og konfigurere din Chameleon Ultra, skrevet i Flutter og k\u00f8rer p\u00e5 Desktop og Mobile.",
+  "independent_fork_notice": "Independent community build based on the upstream open-source project. Not an official release.",
   "developed_by": "Udviklet af",
   "license": "Licens",
   "thanks_for_support": "Tak til alle, der st\u00f8tter os p\u00e5 Open Collective!",

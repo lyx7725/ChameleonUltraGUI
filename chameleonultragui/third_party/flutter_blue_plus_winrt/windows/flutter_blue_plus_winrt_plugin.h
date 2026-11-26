@@ -101,6 +101,13 @@ class FlutterBluePlusWinrtPlugin : public flutter::Plugin {
       const winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher&,
       const winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs&);
 
+  static winrt::fire_and_forget DispatchAdvertisement(
+      FlutterBluePlusWinrtPlugin* self,
+      std::shared_ptr<std::atomic<bool>> alive,
+      winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs args);
+  void HandleAdvertisement(
+      winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs args);
+
   void OnAdvertisementStopped(
       const winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher&,
       const winrt::Windows::Devices::Bluetooth::Advertisement::BluetoothLEAdvertisementWatcherStoppedEventArgs&);
@@ -160,15 +167,41 @@ class FlutterBluePlusWinrtPlugin : public flutter::Plugin {
     const winrt::Windows::Devices::Bluetooth::BluetoothLEDevice&,
     const winrt::Windows::Foundation::IInspectable&);
 
+  static winrt::fire_and_forget DispatchConnectionStatus(
+      FlutterBluePlusWinrtPlugin* self,
+      std::shared_ptr<std::atomic<bool>> alive,
+      winrt::Windows::Devices::Bluetooth::BluetoothLEDevice device);
+  void HandleConnectionStatus(winrt::Windows::Devices::Bluetooth::BluetoothLEDevice device);
+
   void OnCharacteristicValueChanged(
       std::string remote_id,
       const winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic& sender,
       const winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs& args);
 
+  static winrt::fire_and_forget DispatchCharacteristicValue(
+      FlutterBluePlusWinrtPlugin* self,
+      std::shared_ptr<std::atomic<bool>> alive,
+      std::string remote_id,
+      winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic sender,
+      winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs args);
+  void HandleCharacteristicValue(
+      std::string remote_id,
+      winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattCharacteristic sender,
+      winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs args);
+
   void OnMaxPduSizeChanged(
       std::string remote_id,
       const winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattSession& sender,
       const winrt::Windows::Foundation::IInspectable& args);
+
+  static winrt::fire_and_forget DispatchMaxPduSize(
+      FlutterBluePlusWinrtPlugin* self,
+      std::shared_ptr<std::atomic<bool>> alive,
+      std::string remote_id,
+      winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattSession sender);
+  void HandleMaxPduSize(
+      std::string remote_id,
+      winrt::Windows::Devices::Bluetooth::GenericAttributeProfile::GattSession sender);
 
   winrt::fire_and_forget PeriodicConnectionCheck();
 

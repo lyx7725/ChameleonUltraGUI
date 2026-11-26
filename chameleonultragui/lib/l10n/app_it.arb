@@ -87,6 +87,7 @@
   "auto": "Automatica",
   "restart_now": "Riavvia ora",
   "about_text": "Uno Strumento per gestire e configurare graficamente il tuo Chameleon Ultra, scritto in Flutter ed eseguibile su Desktop e Mobile.",
+  "independent_fork_notice": "Independent community build based on the upstream open-source project. Not an official release.",
   "version": "Versione",
   "developed_by": "Sviluppato da",
   "license": "Licenza",

@@ -51,10 +51,15 @@ class ManualConnectState extends State<ManualConnect> {
               return;
             }
 
-            await appState.connector!
+            final connected = await appState.connector!
                 .connectSpecificDevice(portController.text);
-            appState.communicator =
-                ChameleonCommunicator(appState.log!, port: appState.connector);
+            if (connected) {
+              appState.clearAutoReconnectSuppression(portController.text);
+              appState.communicator = ChameleonCommunicator(
+                appState.log!,
+                port: appState.connector,
+              );
+            }
             appState.connector!.pendingConnection = false;
             appState.changesMade();
           },

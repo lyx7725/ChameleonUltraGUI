@@ -76,6 +76,8 @@ class HomeViewData {
     int? activeSlot,
     bool? isReaderMode,
     int? batteryPercent,
+    bool? isDemo,
+    bool? capabilitiesSupported,
   }) {
     return HomeViewData(
       deviceName: deviceName,
@@ -87,8 +89,9 @@ class HomeViewData {
       firmwareCommit: firmwareCommit,
       updateAvailable: updateAvailable,
       isReaderMode: isReaderMode ?? this.isReaderMode,
-      isDemo: isDemo,
-      capabilitiesSupported: capabilitiesSupported,
+      isDemo: isDemo ?? this.isDemo,
+      capabilitiesSupported:
+          capabilitiesSupported ?? this.capabilitiesSupported,
       activeSlot: activeSlot ?? this.activeSlot,
       slotsReady: slotsReady,
       slotTypes: slotTypes,
@@ -180,6 +183,10 @@ class HomeOverview extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _phoneHeader(context, p),
+        if (data.isDemo || !data.capabilitiesSupported) ...[
+          const SizedBox(height: 12),
+          _warnings(context, p),
+        ],
         const SizedBox(height: 16),
         _currentSlot(context, p, compact: true),
         const SizedBox(height: 16),
@@ -200,6 +207,10 @@ class HomeOverview extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (data.isDemo || !data.capabilitiesSupported) ...[
+          _warnings(context, p),
+          const SizedBox(height: 16),
+        ],
         _sectionTitle(AppLocalizations.of(context)!.current_slot),
         const SizedBox(height: 8),
         _currentSlot(context, p, compact: compact),
@@ -241,7 +252,7 @@ class HomeOverview extends StatelessWidget {
                         image,
                         height: 96,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
+                        errorBuilder: (_, _, _) =>
                             Image.asset(image, fit: BoxFit.contain),
                       ),
                     ),
@@ -365,6 +376,53 @@ class HomeOverview extends StatelessWidget {
     );
   }
 
+  Widget _warnings(BuildContext context, _HomePalette p) {
+    final l = AppLocalizations.of(context)!;
+    if (data.isDemo) {
+      return _warningBanner(
+        p,
+        key: const ValueKey('home_demo_warning'),
+        text: l.demo_firmware,
+      );
+    }
+    if (!data.capabilitiesSupported) {
+      return _warningBanner(
+        p,
+        key: const ValueKey('home_capabilities_warning'),
+        text: l.please_update_firmware,
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _warningBanner(
+    _HomePalette p, {
+    required Key key,
+    required String text,
+  }) {
+    return Container(
+      key: key,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: p.error.withValues(alpha: 0.10),
+        border: Border.all(color: p.error.withValues(alpha: 0.45)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, size: 20, color: p.error),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 13, color: p.primaryText),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _devicePanel(
     BuildContext context,
     _HomePalette p, {
@@ -375,10 +433,12 @@ class HomeOverview extends StatelessWidget {
         ? 'assets/black-lite-standing-front.webp'
         : 'assets/black-ultra-standing-front.webp';
 
-    return _Panel(
-      palette: p,
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return KeyedSubtree(
+      key: const ValueKey('home_device_panel'),
+      child: _Panel(
+        palette: p,
+        padding: const EdgeInsets.all(16),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Center(
@@ -389,7 +449,7 @@ class HomeOverview extends StatelessWidget {
                   child: Image.asset(
                     image,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
+                    errorBuilder: (_, _, _) =>
                         Image.asset(image, fit: BoxFit.contain),
                   ),
                 ),
@@ -499,7 +559,8 @@ class HomeOverview extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _connectionAndBattery(BuildContext context, _HomePalette p) {
@@ -584,10 +645,12 @@ class HomeOverview extends StatelessWidget {
               : l.no_name)
         : '';
 
-    return _Panel(
-      palette: p,
-      padding: const EdgeInsets.all(16),
-      child: Row(
+    return KeyedSubtree(
+      key: const ValueKey('home_current_slot'),
+      child: _Panel(
+        palette: p,
+        padding: const EdgeInsets.all(16),
+        child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!ready)
@@ -675,7 +738,8 @@ class HomeOverview extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _slotGrid(
